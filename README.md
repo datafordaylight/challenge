@@ -2,6 +2,10 @@
 
 Projeto paralelo e independente para rodar no GitHub Pages.
 
+## Créditos e referência
+
+Este projeto é um tracker independente inspirado pelo [DBD Survivor Gauntlet](https://mayursoneji.com/projects/dbd-survivor-gauntlet/) e pelo app público [DBD Challenges](https://dbd-challenges.mayursoneji.com/), criados por Mayur Soneji. Não é uma cópia oficial, não usa login, não usa backend e não possui vínculo com Mayur Soneji, Behaviour Interactive ou Dead by Daylight.
+
 ## Características
 
 - Sem login.
