@@ -6,6 +6,8 @@ Projeto paralelo e independente para rodar no GitHub Pages.
 
 Este projeto é um tracker independente inspirado pelo [DBD Survivor Gauntlet](https://mayursoneji.com/projects/dbd-survivor-gauntlet/) e pelo app público [DBD Challenges](https://dbd-challenges.mayursoneji.com/), criados por Mayur Soneji. Não é uma cópia oficial, não usa login, não usa backend e não possui vínculo com Mayur Soneji, Behaviour Interactive ou Dead by Daylight.
 
+Os créditos aparecem no rodapé e na página `#help`.
+
 ## Características
 
 - Sem login.
@@ -31,3 +33,7 @@ Publique a pasta inteira como site estático no GitHub Pages. Não há etapa de 
 ## Prévia local
 
 Abra `index.html` diretamente no navegador ou sirva a pasta com qualquer servidor estático.
+
+## Bugs
+
+Reporte problemas em https://github.com/datafordaylight/challenge/issues.

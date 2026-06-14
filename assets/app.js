@@ -643,6 +643,14 @@ function helpView() {
         <p>Não existe login nem servidor. Tudo fica no navegador. Use Exportar tudo para criar um backup JSON e Importar backup para restaurar ou levar o progresso para outro dispositivo.</p>
       </article>
     </section>
+    <section class="credit-panel">
+      <div>
+        <span class="eyebrow">Créditos</span>
+        <h2>Referência do projeto</h2>
+        <p>Este tracker independente é inspirado pelo <a href="https://mayursoneji.com/projects/dbd-survivor-gauntlet/" target="_blank" rel="noreferrer">DBD Survivor Gauntlet</a> e pelo app público <a href="https://dbd-challenges.mayursoneji.com/" target="_blank" rel="noreferrer">DBD Challenges</a>, criados por Mayur Soneji. A proposta aqui é manter um projeto separado, local-first e sem backend.</p>
+      </div>
+      <a class="ghost-link" href="https://mayursoneji.com/projects/dbd-survivor-gauntlet/" target="_blank" rel="noreferrer">Ver referência original</a>
+    </section>
   `;
 }
 
