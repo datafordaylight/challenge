@@ -21,6 +21,9 @@ Os créditos aparecem no rodapé e na página `#help`.
 - i18n iniciado em `pt-BR` e `en`, expansível em `assets/app.js`.
 - Painel de controle separado com menu próprio.
 - Telas separadas por navegação: `#tracker`, `#panel` e `#help`.
+- Tela inicial de escolha de caminho, inspirada no fluxo do projeto original.
+- Tracker em layout de trial com barra de progresso, checkpoint, seleção atual e grid compacto.
+- Modal `Challenge Statistics` com progresso, partidas, win rate, falhas, sequências e melhor/pior entrada.
 - Gerenciamento por entrada: concluir, desfazer, pular, reativar, bloquear/desbloquear e priorizar.
 - Histórico editável com remoção de eventos específicos.
 - Regras locais: checkpoint, pool de sorteio, auto-sorteio, visibilidade de concluídos e notas.

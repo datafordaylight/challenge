@@ -12,6 +12,8 @@ const I18N = {
     'hero.eyebrow': 'GitHub Pages · sem login · local first',
     'hero.title': 'Gauntlet Challenge',
     'hero.lead': 'Sorteie personagens, marque vitórias e volte automaticamente ao checkpoint em caso de falha. Tudo fica salvo apenas neste navegador.',
+    'choose.title': 'Escolha seu caminho',
+    'choose.lead': 'Selecione o modo da sua gauntlet para continuar.',
     'mode.survivor': 'Sobreviventes',
     'mode.killer': 'Assassinos',
     'action.spin': 'Sortear',
@@ -25,6 +27,9 @@ const I18N = {
     'stat.attempts': 'Tentativas',
     'stat.safe': 'Checkpoint seguro',
     'stat.next': 'Próximo checkpoint',
+    'stats.title': 'Challenge Statistics',
+    'stats.subtitleSurvivor': 'Acompanhe sua performance de sobrevivente',
+    'stats.subtitleKiller': 'Acompanhe sua performance de assassino',
   },
   en: {
     'brand.subtitle': 'Local Dead by Daylight gauntlet',
@@ -34,6 +39,8 @@ const I18N = {
     'hero.eyebrow': 'GitHub Pages · no login · local first',
     'hero.title': 'Gauntlet Challenge',
     'hero.lead': 'Spin characters, mark wins, and roll back to the latest checkpoint after a failure. Everything is saved only in this browser.',
+    'choose.title': 'Choose your path',
+    'choose.lead': 'Select your gauntlet mode to continue.',
     'mode.survivor': 'Survivors',
     'mode.killer': 'Killers',
     'action.spin': 'Spin',
@@ -47,6 +54,9 @@ const I18N = {
     'stat.attempts': 'Attempts',
     'stat.safe': 'Safe checkpoint',
     'stat.next': 'Next checkpoint',
+    'stats.title': 'Challenge Statistics',
+    'stats.subtitleSurvivor': 'Track your survivor performance',
+    'stats.subtitleKiller': 'Track your killer performance',
   },
 };
 
@@ -58,6 +68,7 @@ const FALLBACKS = {
 const state = {
   locale: detectLocale(),
   panelTab: 'completed',
+  statsOpen: false,
 };
 
 function detectLocale() {
@@ -112,6 +123,8 @@ function defaultRun() {
     wins: 0,
     failures: 0,
     notes: '',
+    winsById: {},
+    failuresById: {},
     history: [],
   };
 }
@@ -141,6 +154,8 @@ function normalizeRun(value) {
   run.wins = Number(run.wins) || run.completedIds.length;
   run.failures = Number(run.failures) || 0;
   run.notes = String(run.notes || '');
+  run.winsById = run.winsById && typeof run.winsById === 'object' ? run.winsById : {};
+  run.failuresById = run.failuresById && typeof run.failuresById === 'object' ? run.failuresById : {};
   return run;
 }
 
@@ -225,6 +240,7 @@ function addHistory(type, id, label) {
 function setMode(mode) {
   save.mode = mode;
   persist();
+  if (currentView() === 'choose') location.hash = '#tracker';
   render();
 }
 
@@ -246,6 +262,7 @@ function completeCurrent() {
   currentRun.completedIds.push(currentRun.currentId);
   currentRun.skippedIds = currentRun.skippedIds.filter(id => id !== currentRun.currentId);
   currentRun.wins += 1;
+  currentRun.winsById[currentRun.currentId] = (Number(currentRun.winsById[currentRun.currentId]) || 0) + 1;
   currentRun.attempts += 1;
   addHistory(save.mode === 'killer' ? 'vitória' : 'escape', currentRun.currentId);
   currentRun.currentId = null;
@@ -256,12 +273,14 @@ function completeCurrent() {
 
 function failRollback() {
   const currentRun = run();
+  const failedId = currentRun.currentId;
   const keep = Math.floor(currentRun.completedIds.length / save.checkpointSize) * save.checkpointSize;
   const removed = currentRun.completedIds.splice(keep);
   currentRun.currentId = null;
   currentRun.failures += 1;
+  if (failedId) currentRun.failuresById[failedId] = (Number(currentRun.failuresById[failedId]) || 0) + 1;
   currentRun.attempts += 1;
-  addHistory('falha', null, `${removed.length} removidos`);
+  addHistory('falha', failedId, failedId ? displayName(itemById(failedId)) : `${removed.length} removidos`);
   persist();
   render();
 }
@@ -273,6 +292,7 @@ function mutateEntry(id, action) {
   };
   if (action === 'complete') {
     if (!currentRun.completedIds.includes(id)) currentRun.completedIds.push(id);
+    currentRun.winsById[id] = (Number(currentRun.winsById[id]) || 0) + 1;
     removeFrom('skippedIds');
     removeFrom('bannedIds');
     addHistory('concluído manualmente', id);
@@ -382,6 +402,49 @@ function copySummary() {
     `Checkpoint: ${Math.floor(current.done / save.checkpointSize) * save.checkpointSize}`,
   ].join('\n');
   navigator.clipboard?.writeText(text);
+}
+
+function isWinEntry(entry) {
+  return ['escape', 'vitória', 'concluído manualmente'].includes(entry.type);
+}
+
+function isFailureEntry(entry) {
+  return entry.type === 'falha';
+}
+
+function streakStats(history = []) {
+  let current = 0;
+  let longest = 0;
+  [...history].reverse().forEach(entry => {
+    if (isWinEntry(entry)) {
+      current += 1;
+      longest = Math.max(longest, current);
+    } else if (isFailureEntry(entry)) {
+      current = 0;
+    }
+  });
+  return { current, longest };
+}
+
+function topEntryBy(map, mode = save.mode) {
+  const entries = Object.entries(map || {})
+    .map(([id, count]) => ({ item: itemById(Number(id), mode), count: Number(count) || 0 }))
+    .filter(entry => entry.item && entry.count > 0)
+    .sort((a, b) => b.count - a.count || displayName(a.item).localeCompare(displayName(b.item), state.locale));
+  return entries[0] || null;
+}
+
+function modeMetrics(mode = save.mode) {
+  const current = progress(mode);
+  const currentRun = run(mode);
+  const winRate = currentRun.attempts ? Math.round((currentRun.wins / currentRun.attempts) * 100) : 0;
+  return {
+    ...current,
+    winRate,
+    streak: streakStats(currentRun.history),
+    best: topEntryBy(currentRun.winsById, mode),
+    worst: topEntryBy(currentRun.failuresById, mode),
+  };
 }
 
 function statusFor(item, current) {
@@ -507,8 +570,8 @@ function panelContent(current) {
 }
 
 function currentView() {
-  const value = location.hash.replace('#', '') || 'tracker';
-  return ['tracker', 'panel', 'help'].includes(value) ? value : 'tracker';
+  const value = location.hash.replace('#', '') || 'choose';
+  return ['choose', 'tracker', 'panel', 'help'].includes(value) ? value : 'choose';
 }
 
 function modeSwitcher() {
@@ -520,49 +583,134 @@ function modeSwitcher() {
   `;
 }
 
-function trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel) {
+function checkpointBar(metrics, mode) {
+  const pct = metrics.total ? Math.max(2, Math.round((metrics.done / metrics.total) * 100)) : 0;
+  const marks = [];
+  for (let mark = save.checkpointSize; mark < metrics.total; mark += save.checkpointSize) marks.push(mark);
+  if (!marks.includes(metrics.total)) marks.push(metrics.total);
   return `
-    <section class="hero" id="tracker">
-      <div class="hero-copy">
+    <div class="checkpoint-bar">
+      <div class="checkpoint-fill ${mode}" style="width: ${pct}%"></div>
+      ${marks.map(mark => `<span class="checkpoint-mark" style="left: ${Math.min(100, (mark / metrics.total) * 100)}%"><i></i><b>${mark}</b></span>`).join('')}
+    </div>
+  `;
+}
+
+function chooseView() {
+  const survivor = modeMetrics('survivor');
+  const killer = modeMetrics('killer');
+  const cards = [
+    ['survivor', survivor, 'fa-person-running', 'Escape com todos'],
+    ['killer', killer, 'fa-skull', 'Mate com todos'],
+  ];
+  return `
+    <section class="intro-screen">
+      <div class="intro-brand">
+        <span class="brand-chip">52</span>
+        <strong>Gauntlet <span>Challenge</span></strong>
+      </div>
+      <div class="intro-copy">
+        <h1>${esc(t('choose.title'))}</h1>
+        <p>${esc(t('choose.lead'))}</p>
+      </div>
+      <div class="path-grid">
+        ${cards.map(([mode, metrics, icon, text]) => `
+          <button class="path-card ${mode}" type="button" data-action="mode" data-mode="${mode}">
+            <i class="fa-solid ${icon}" aria-hidden="true"></i>
+            <b>${esc(t(`mode.${mode}`))}</b>
+            <span>${esc(text)} · ${metrics.total}</span>
+            <small>${metrics.done} / ${metrics.total}</small>
+            ${checkpointBar(metrics, mode)}
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function statisticsModal(metrics, picked) {
+  if (!state.statsOpen) return '';
+  const unit = save.mode === 'killer' ? 'vitórias' : 'escapes';
+  const danger = metrics.currentRun.failures > metrics.currentRun.wins
+    ? 'Você está em perigo. Foco no próximo teste.'
+    : 'Ritmo estável. Continue avançando.';
+  return `
+    <div class="stats-backdrop" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+      <section class="stats-modal">
+        <header>
+          <div>
+            <h2 id="stats-title"><i class="fa-solid fa-chart-column" aria-hidden="true"></i>${esc(t('stats.title'))}</h2>
+            <p>${esc(t(save.mode === 'killer' ? 'stats.subtitleKiller' : 'stats.subtitleSurvivor'))}</p>
+          </div>
+          <button type="button" class="icon-button" data-action="close-stats" aria-label="Fechar estatísticas"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </header>
+        <div class="stats-cards">
+          <article><b>${metrics.done}</b><span>/ ${metrics.total} ${save.mode === 'killer' ? 'assassinos' : 'sobreviventes'}</span></article>
+          <article><b>${metrics.currentRun.attempts}</b><span>partidas</span></article>
+          <article class="good"><b>${metrics.winRate}%</b><span>win rate</span></article>
+          <article class="bad"><b>${metrics.currentRun.failures}</b><span>falhas</span></article>
+        </div>
+        <div class="streak-grid">
+          <article><span>Sequência atual</span><b>${metrics.streak.current}</b><em>${unit}</em></article>
+          <article><span>Maior sequência</span><b>${metrics.streak.longest}</b><em>${unit}</em></article>
+        </div>
+        <div class="best-worst-grid">
+          <article class="best"><span><i class="fa-solid fa-trophy" aria-hidden="true"></i> Melhor entrada</span>${metrics.best ? `<b>${esc(displayName(metrics.best.item))}</b><small>${metrics.best.count} ${unit}</small>` : '<em>Sem dados ainda</em>'}</article>
+          <article class="worst"><span><i class="fa-solid fa-skull" aria-hidden="true"></i> Maior risco</span>${metrics.worst ? `<b>${esc(displayName(metrics.worst.item))}</b><small>${metrics.worst.count} falhas</small>` : '<em>Sem dados ainda</em>'}</article>
+        </div>
+        <div class="danger-note">${esc(danger)}</div>
+      </section>
+    </div>
+  `;
+}
+
+function trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel) {
+  const metrics = modeMetrics();
+  return `
+    <section class="trial-layout" id="tracker">
+      <aside class="trial-sidebar">
         <span class="eyebrow">${esc(t('hero.eyebrow'))}</span>
         ${modeSwitcher()}
-        <h1>${esc(t('hero.title'))}</h1>
-        <p>${esc(t('hero.lead'))}</p>
-        <div class="actions">
-          <button type="button" data-action="spin">${esc(t('action.spin'))}</button>
-          <button type="button" data-action="complete" ${picked ? '' : 'disabled'}>${esc(t(save.mode === 'killer' ? 'action.completeKiller' : 'action.completeSurvivor'))}</button>
-          <button type="button" data-action="fail">${esc(t('action.fail'))}</button>
+        <div class="progress-card">
+          <header><b>Progress</b><span>${current.done} / ${current.total}</span></header>
+          ${checkpointBar(metrics, save.mode)}
+          <p>Próximo checkpoint em <b>${Math.max(0, nextCheckpoint - current.done)}</b> ${save.mode === 'killer' ? 'vitórias' : 'escapes'}</p>
         </div>
-      </div>
-      <aside class="pick-panel">
-        <span class="eyebrow">${esc(t('pick.current'))}</span>
-        ${picked ? `
-          <img src="${esc(picked.image || FALLBACKS[save.mode])}" alt="" referrerpolicy="no-referrer">
-          <h2>${esc(displayName(picked))}</h2>
-          ${originalName(picked) ? `<p>${esc(originalName(picked))}</p>` : ''}
-        ` : `<h2>${esc(t('pick.empty'))}</h2><p>${esc(t('pick.emptyHelp'))}</p>`}
+        <div class="current-card">
+          <span class="eyebrow">${esc(t('pick.current'))}</span>
+          ${picked ? `
+            <img src="${esc(picked.image || FALLBACKS[save.mode])}" alt="" referrerpolicy="no-referrer">
+            <h2>${esc(displayName(picked))}</h2>
+            ${originalName(picked) ? `<p>${esc(originalName(picked))}</p>` : ''}
+          ` : `<h2>${esc(t('pick.empty'))}</h2><p>${esc(t('pick.emptyHelp'))}</p>`}
+        </div>
+        <div class="trial-actions">
+          <button class="won" type="button" data-action="complete" ${picked ? '' : 'disabled'}><i class="fa-solid fa-check" aria-hidden="true"></i>${esc(t(save.mode === 'killer' ? 'action.completeKiller' : 'action.completeSurvivor'))}</button>
+          <button class="lost" type="button" data-action="fail"><i class="fa-solid fa-xmark" aria-hidden="true"></i>${esc(t('action.fail'))}</button>
+        </div>
       </aside>
+      <section class="trial-board">
+        <header>
+          <div>
+            <h1>${esc(save.mode === 'killer' ? 'Killer Challenge' : 'Survivor Challenge')}</h1>
+            <p>${esc(t('hero.lead'))}</p>
+          </div>
+          <div class="board-actions">
+            <button type="button" data-action="spin">${esc(t('action.spin'))}</button>
+            <button type="button" data-action="open-stats"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Estatísticas</button>
+            <a href="#panel">Painel</a>
+          </div>
+        </header>
+        <div class="roster-toolbar">
+          <b>${current.done}</b><span>/ ${current.total} concluídos</span>
+          <label><input data-action="show-completed" type="checkbox" ${save.showCompletedInRoster ? 'checked' : ''}> Mostrar concluídos</label>
+        </div>
+        <section class="roster compact" id="roster">
+          ${current.list.map(item => characterCard(item, current)).join('')}
+        </section>
+      </section>
     </section>
-
-    <section class="stats">
-      <div class="ring" style="--value: ${percent}%"><b>${percent}%</b><span>${current.done}/${current.total}</span></div>
-      <div class="stat"><span>${completedLabel}</span><b>${current.done}</b></div>
-      <div class="stat"><span>${esc(t('stat.remaining'))}</span><b>${current.available.length}</b></div>
-      <div class="stat"><span>${esc(t('stat.attempts'))}</span><b>${current.currentRun.attempts}</b></div>
-      <div class="stat"><span>${esc(t('stat.safe'))}</span><b>${checkpoint}</b></div>
-      <div class="stat"><span>${esc(t('stat.next'))}</span><b>${nextCheckpoint}</b></div>
-    </section>
-
-    <section class="board-head">
-      <div>
-        <span class="eyebrow">Lista do desafio</span>
-        <h2>${esc(t(`mode.${save.mode}`))}</h2>
-      </div>
-      <a href="#panel">Gerenciar no painel</a>
-    </section>
-    <section class="roster" id="roster">
-      ${current.list.map(item => characterCard(item, current)).join('')}
-    </section>
+    ${statisticsModal(metrics, picked)}
   `;
 }
 
@@ -668,11 +816,13 @@ function render() {
     node.textContent = t(node.dataset.i18n);
   });
 
-  app.innerHTML = view === 'panel'
-    ? panelView(current)
-    : view === 'help'
-      ? helpView()
-      : trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel);
+  app.innerHTML = view === 'choose'
+    ? chooseView()
+    : view === 'panel'
+      ? panelView(current)
+      : view === 'help'
+        ? helpView()
+        : trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel);
 
   bindControls();
 }
@@ -691,6 +841,14 @@ function bindControls() {
         render();
       }
       if (action === 'clear-current') clearCurrent();
+      if (action === 'open-stats') {
+        state.statsOpen = true;
+        render();
+      }
+      if (action === 'close-stats') {
+        state.statsOpen = false;
+        render();
+      }
       if (action === 'copy-summary') copySummary();
       if (action === 'clear-history') clearHistory();
       if (action === 'delete-history') deleteHistory(button.dataset.historyId);
