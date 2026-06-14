@@ -137,6 +137,56 @@ main {
   align-items: stretch;
 }
 
+.page-head,
+.board-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-head {
+  align-items: center;
+  min-height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: clamp(18px, 4vw, 32px);
+  background: var(--panel);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .3);
+}
+
+.page-head h1 {
+  margin-top: 8px;
+  font-size: clamp(38px, 5vw, 68px);
+}
+
+.page-head p {
+  max-width: 760px;
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.ghost-link,
+.board-head a {
+  min-height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 13px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ghost-link:hover,
+.board-head a:hover {
+  border-color: rgba(229, 173, 79, .66);
+  background: rgba(229, 173, 79, .13);
+}
+
 .hero-copy,
 .pick-panel,
 .stats,
@@ -239,6 +289,16 @@ h1 {
   align-items: center;
   margin-top: 16px;
   padding: 14px;
+}
+
+.board-head {
+  margin-top: 18px;
+  padding: 0 2px;
+}
+
+.board-head h2 {
+  margin-top: 4px;
+  font-size: 28px;
 }
 
 .ring {

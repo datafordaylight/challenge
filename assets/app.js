@@ -8,7 +8,7 @@ const I18N = {
     'brand.subtitle': 'Gauntlet local para Dead by Daylight',
     'nav.tracker': 'Tracker',
     'nav.panel': 'Painel',
-    'nav.roster': 'Lista',
+    'nav.help': 'Ajuda',
     'hero.eyebrow': 'GitHub Pages · sem login · local first',
     'hero.title': 'Gauntlet Challenge',
     'hero.lead': 'Sorteie personagens, marque vitórias e volte automaticamente ao checkpoint em caso de falha. Tudo fica salvo apenas neste navegador.',
@@ -30,7 +30,7 @@ const I18N = {
     'brand.subtitle': 'Local Dead by Daylight gauntlet',
     'nav.tracker': 'Tracker',
     'nav.panel': 'Control',
-    'nav.roster': 'Roster',
+    'nav.help': 'Help',
     'hero.eyebrow': 'GitHub Pages · no login · local first',
     'hero.title': 'Gauntlet Challenge',
     'hero.lead': 'Spin characters, mark wins, and roll back to the latest checkpoint after a failure. Everything is saved only in this browser.',
@@ -480,36 +480,6 @@ function panelContent(current) {
       <p class="fine-print">Os dados são salvos somente no navegador. O arquivo JSON é o seu backup portátil.</p>
     `;
   }
-  if (state.panelTab === 'help') {
-    return `
-      <div class="help-grid">
-        <article>
-          <h3>Como o desafio funciona</h3>
-          <p>Escolha Sobreviventes ou Assassinos no topo. Cada modo tem progresso independente: escapes/vitórias, tentativas, falhas, sorteio atual, histórico, bloqueios e notas não se misturam.</p>
-        </article>
-        <article>
-          <h3>Sorteio e conclusão</h3>
-          <p>O botão Sortear escolhe uma entrada do pool permitido. Depois da partida, use Marcar escape ou Marcar vitória para concluir a entrada atual. A entrada sai do pool normal e o progresso avança.</p>
-        </article>
-        <article>
-          <h3>Falha e checkpoints</h3>
-          <p>Quando houver falha, o sistema volta ao último checkpoint seguro. Com checkpoint 10, por exemplo, um progresso de 27 volta para 20. As entradas removidas voltam a ficar disponíveis.</p>
-        </article>
-        <article>
-          <h3>Entradas específicas</h3>
-          <p>Na aba Entradas você pode concluir ou desfazer qualquer personagem, pular temporariamente, bloquear para remover do sorteio, desbloquear e priorizar para aumentar a chance de aparecer no próximo sorteio.</p>
-        </article>
-        <article>
-          <h3>Regras locais</h3>
-          <p>Em Regras você ajusta o tamanho do checkpoint, decide se o sorteio usa só disponíveis ou todos exceto bloqueados, ativa sorteio automático após concluir, oculta concluídos e registra notas.</p>
-        </article>
-        <article>
-          <h3>Backup e privacidade</h3>
-          <p>Não existe login nem servidor. Tudo fica salvo no navegador. Use Exportar tudo para criar um backup JSON e Importar backup para restaurar ou levar seu progresso para outro dispositivo.</p>
-        </article>
-      </div>
-    `;
-  }
   return `
     <div class="rules-grid">
       <label>Checkpoint
@@ -536,27 +506,26 @@ function panelContent(current) {
   `;
 }
 
-function render() {
-  const current = progress();
-  const picked = current.list.find(item => item.id === current.currentRun.currentId);
-  const percent = current.total ? Math.round((current.done / current.total) * 100) : 0;
-  const checkpoint = Math.floor(current.done / save.checkpointSize) * save.checkpointSize;
-  const nextCheckpoint = Math.min(checkpoint + save.checkpointSize, current.total);
-  const completedLabel = save.mode === 'killer' ? 'Vitórias' : 'Escapes';
+function currentView() {
+  const value = location.hash.replace('#', '') || 'tracker';
+  return ['tracker', 'panel', 'help'].includes(value) ? value : 'tracker';
+}
 
-  document.documentElement.lang = state.locale;
-  document.querySelectorAll('[data-i18n]').forEach(node => {
-    node.textContent = t(node.dataset.i18n);
-  });
+function modeSwitcher() {
+  return `
+    <div class="mode-switch" role="tablist" aria-label="Modo do desafio">
+      <button type="button" class="${save.mode === 'survivor' ? 'is-active' : ''}" data-action="mode" data-mode="survivor">${esc(t('mode.survivor'))}</button>
+      <button type="button" class="${save.mode === 'killer' ? 'is-active' : ''}" data-action="mode" data-mode="killer">${esc(t('mode.killer'))}</button>
+    </div>
+  `;
+}
 
-  app.innerHTML = `
+function trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel) {
+  return `
     <section class="hero" id="tracker">
       <div class="hero-copy">
         <span class="eyebrow">${esc(t('hero.eyebrow'))}</span>
-        <div class="mode-switch" role="tablist" aria-label="Modo do desafio">
-          <button type="button" class="${save.mode === 'survivor' ? 'is-active' : ''}" data-action="mode" data-mode="survivor">${esc(t('mode.survivor'))}</button>
-          <button type="button" class="${save.mode === 'killer' ? 'is-active' : ''}" data-action="mode" data-mode="killer">${esc(t('mode.killer'))}</button>
-        </div>
+        ${modeSwitcher()}
         <h1>${esc(t('hero.title'))}</h1>
         <p>${esc(t('hero.lead'))}</p>
         <div class="actions">
@@ -584,6 +553,29 @@ function render() {
       <div class="stat"><span>${esc(t('stat.next'))}</span><b>${nextCheckpoint}</b></div>
     </section>
 
+    <section class="board-head">
+      <div>
+        <span class="eyebrow">Lista do desafio</span>
+        <h2>${esc(t(`mode.${save.mode}`))}</h2>
+      </div>
+      <a href="#panel">Gerenciar no painel</a>
+    </section>
+    <section class="roster" id="roster">
+      ${current.list.map(item => characterCard(item, current)).join('')}
+    </section>
+  `;
+}
+
+function panelView(current) {
+  return `
+    <section class="page-head">
+      <div>
+        <span class="eyebrow">Administração</span>
+        <h1>Painel</h1>
+        <p>Gerencie entradas específicas, regras, histórico e backups. A lista administrativa aparece só aqui.</p>
+      </div>
+      ${modeSwitcher()}
+    </section>
     <section class="control-suite" id="panel">
       <aside class="panel-menu" aria-label="Menu do painel">
         ${[
@@ -591,25 +583,88 @@ function render() {
           ['history', 'Histórico'],
           ['rules', 'Regras'],
           ['backup', 'Backup'],
-          ['help', 'Ajuda'],
         ].map(([tab, label]) => `<button type="button" class="${state.panelTab === tab ? 'is-active' : ''}" data-action="panel-tab" data-tab="${tab}">${label}</button>`).join('')}
       </aside>
       <section class="panel-body">
         <header>
           <div>
-            <h2>Painel de controle</h2>
-            <p>Gerencie entradas específicas, regras, histórico e backups do modo atual.</p>
+            <h2>${esc(t(`mode.${save.mode}`))}</h2>
+            <p>Modo atual do painel. Alterações aqui afetam somente este modo.</p>
           </div>
           <span class="locale-pill">Idioma automático: ${esc(state.locale)}</span>
         </header>
         ${panelContent(current)}
       </section>
     </section>
+  `;
+}
 
-    <section class="roster" id="roster">
-      ${current.list.map(item => characterCard(item, current)).join('')}
+function helpView() {
+  return `
+    <section class="page-head help-head" id="help">
+      <div>
+        <span class="eyebrow">Guia de uso</span>
+        <h1>Ajuda</h1>
+        <p>Entenda o fluxo do desafio, onde cada coisa fica e como proteger seu progresso.</p>
+      </div>
+      <a class="ghost-link" href="#tracker">Voltar ao tracker</a>
+    </section>
+    <section class="help-grid">
+      <article>
+        <h3>Como o desafio funciona</h3>
+        <p>Escolha Sobreviventes ou Assassinos no Tracker. Cada modo tem progresso independente: escapes/vitórias, tentativas, falhas, sorteio atual, histórico, bloqueios e notas não se misturam.</p>
+      </article>
+      <article>
+        <h3>Tracker</h3>
+        <p>O Tracker é a tela de uso durante a run. Ele mostra o sorteio atual, progresso, estatísticas e o grid visual dos personagens. Clicar em um card alterna concluído/desfeito rapidamente.</p>
+      </article>
+      <article>
+        <h3>Painel</h3>
+        <p>O Painel é a área administrativa. Nele ficam a lista detalhada, histórico, regras e backups. A lista detalhada não aparece no Tracker para evitar duplicação visual.</p>
+      </article>
+      <article>
+        <h3>Sorteio e conclusão</h3>
+        <p>Sortear escolhe uma entrada do pool permitido. Depois da partida, use Marcar escape ou Marcar vitória para concluir a entrada atual. A entrada sai do pool normal e o progresso avança.</p>
+      </article>
+      <article>
+        <h3>Falha e checkpoints</h3>
+        <p>Quando houver falha, o sistema volta ao último checkpoint seguro. Com checkpoint 10, por exemplo, um progresso de 27 volta para 20. As entradas removidas voltam a ficar disponíveis.</p>
+      </article>
+      <article>
+        <h3>Entradas específicas</h3>
+        <p>Na aba Entradas do Painel você pode concluir ou desfazer qualquer personagem, pular temporariamente, bloquear para remover do sorteio, desbloquear e priorizar para o próximo sorteio.</p>
+      </article>
+      <article>
+        <h3>Regras locais</h3>
+        <p>Em Regras você ajusta checkpoint, pool de sorteio, sorteio automático após concluir, visibilidade de concluídos no grid e notas do modo atual.</p>
+      </article>
+      <article>
+        <h3>Backup e privacidade</h3>
+        <p>Não existe login nem servidor. Tudo fica no navegador. Use Exportar tudo para criar um backup JSON e Importar backup para restaurar ou levar o progresso para outro dispositivo.</p>
+      </article>
     </section>
   `;
+}
+
+function render() {
+  const current = progress();
+  const picked = current.list.find(item => item.id === current.currentRun.currentId);
+  const percent = current.total ? Math.round((current.done / current.total) * 100) : 0;
+  const checkpoint = Math.floor(current.done / save.checkpointSize) * save.checkpointSize;
+  const nextCheckpoint = Math.min(checkpoint + save.checkpointSize, current.total);
+  const completedLabel = save.mode === 'killer' ? 'Vitórias' : 'Escapes';
+  const view = currentView();
+
+  document.documentElement.lang = state.locale;
+  document.querySelectorAll('[data-i18n]').forEach(node => {
+    node.textContent = t(node.dataset.i18n);
+  });
+
+  app.innerHTML = view === 'panel'
+    ? panelView(current)
+    : view === 'help'
+      ? helpView()
+      : trackerView(current, picked, percent, checkpoint, nextCheckpoint, completedLabel);
 
   bindControls();
 }
@@ -662,5 +717,7 @@ function bindControls() {
   });
   app.querySelector('[data-action="import"]')?.addEventListener('change', event => importSave(event.target.files[0]));
 }
+
+window.addEventListener('hashchange', render);
 
 render();

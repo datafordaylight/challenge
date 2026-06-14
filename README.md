@@ -14,10 +14,11 @@ Projeto paralelo e independente para rodar no GitHub Pages.
 - Idioma detectado automaticamente pelo navegador.
 - i18n iniciado em `pt-BR` e `en`, expansível em `assets/app.js`.
 - Painel de controle separado com menu próprio.
+- Telas separadas por navegação: `#tracker`, `#panel` e `#help`.
 - Gerenciamento por entrada: concluir, desfazer, pular, reativar, bloquear/desbloquear e priorizar.
 - Histórico editável com remoção de eventos específicos.
 - Regras locais: checkpoint, pool de sorteio, auto-sorteio, visibilidade de concluídos e notas.
-- Aba de ajuda com explicação detalhada do fluxo, checkpoints, entradas específicas, regras e backup.
+- Página de ajuda com explicação detalhada do fluxo, checkpoints, entradas específicas, regras e backup.
 
 ## Publicação
 
