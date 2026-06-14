@@ -736,10 +736,20 @@ h1 {
 }
 
 .footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 7px 10px;
   background: rgba(255, 255, 255, .04);
+}
+
+.footer-links i {
+  width: 15px;
+  color: var(--gold);
+  font-size: 14px;
+  text-align: center;
 }
 
 @media (max-width: 940px) {
